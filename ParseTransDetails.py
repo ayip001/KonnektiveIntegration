@@ -1,4 +1,5 @@
-from config import credentials
+from credentials import credentials
+from config import *
 import json
 import urllib2
 

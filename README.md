@@ -1,7 +1,7 @@
 # Konnektive Integration
 
 ## First step
-create a file named config.py and copy this to its body:
+create a file named credentials.py and copy this to its body:
 ```python
 credentials = {
     "API_USERNAME": 'replace_this',
