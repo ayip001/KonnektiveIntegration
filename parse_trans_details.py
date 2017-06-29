@@ -10,9 +10,8 @@ LOGIN = credentials["API_USERNAME"]
 PASS = credentials["API_PASSWORD"]
 
 """
-parseTrans(orderType, startDate, endDate)
+parseTrans([startDate, endDate])
 
-orderType: SALE, RECURRING etc. Run logParseTrans() to see the types
 startDate, endDate: mm/dd/yyyy string. default is yesterday
 
 returns a list of all transactions from startDate to endDate or the error
@@ -32,13 +31,15 @@ def parseTrans(
         requestURL = \
             ("https://api.konnektive.com/transactions/query/?startDate=" +
             startDate + "&endDate=" + endDate + "&resultsPerPage=200&page=" +
-            str(page) + "&loginId="+ LOGIN + "&password=" + PASS)
+            str(page) + "&loginId="+ LOGIN +
+            "&password=" + PASS)
         response = json.load(urllib2.urlopen(requestURL))
         # print str(requestURL) # TEST URL
-        # if response["result"] == "SUCCESS": # Throw error prototype
-        trans.extend(response["message"]["data"])
-        # else:
-        #     raise ValueError(response["message"])
+        if response["result"] == "SUCCESS":
+            trans.extend(response["message"]["data"])
+        else:
+            return response["message"]
+            # raise ValueError(response["message"])
         # print("--- page %s: %s seconds ---" % (page, (time.time() -
         #     startTime))) # TEST TIME
         page += 1
@@ -46,29 +47,32 @@ def parseTrans(
             return trans
 
 """
-logParseTrans(trans)
+logParseTrans(trans[, fileName])
 
-trans: List of trans to print for examination.
+trans: List of trans to print for examination. Get it from parseTrans()
+fileName: how would you like to name your log file? default: log.txt
 
 outputs the results from parseTrans() to log.txt for examination or testing
 """
-def logParseTrans(trans):
-    with open("log.txt", "w") as text_file:
+def logParseTrans(trans, fileName='log.txt'):
+    with open(fileName, "w") as text_file:
         text_file.write(json.dumps(trans, indent=4, sort_keys=True))
 
 """
-parseTransFromLog()
+parseTransFromLog([fileName])
+
+fileName: what is the name of the log file incl extention? default: log.txt
 
 Returns a list of parsed transactions that got stored on log.txt for testing
 The log.txt could be generated from logParseTrans()
 """
-def parseTransFromLog():
-    with open('log.txt', 'r') as myfile:
+def parseTransFromLog(fileName='log.txt'):
+    with open(fileName, 'r') as myfile:
         trans=json.loads(myfile.read())
     return trans
 
 """
-getRebillSummaryByCampaign(trans, billingCycleNumber_l, campaignName)
+getRebillSummaryByCampaign(trans[, billingCycleNumber_l, campaignName])
 
 trans: list of trans needed to count out of. For example: if you want check
     the 1st rebill for "campaign 1" for yesterday, you'd run
@@ -89,16 +93,16 @@ def getRebillSummaryByCampaign(trans, billingCycleNumber_l=range(15),
 
     for entry in trans:
         if entry["billingCycleNumber"] in billingCycleNumber_l and \
-            entry["orderType"] == "NEW_SALE" and (entry["campaignName"] ==
-            campaignName or campaignName == ""):
-            total += 1
-            if entry["responseType"] == "SUCCESS":
-                success += 1
+            entry["txnType"] == "SALE" and (entry["campaignName"] ==
+            campaignName or campaignName == "") and entry["recycleNumber"] \
+            == 0:
+                total += 1
+                if entry["responseType"] == "SUCCESS":
+                    success += 1
     return [success, total]
 
 """
-getRecycleSummaryByCampaign(trans, recycleNumber, campaignName)
-
+getRecycleSummaryByCampaign(trans[, recycleNumber, campaignName])
 trans: list of trans needed to count out of. For example: if you want check
     the 1st recycle for "campaign 1" for yesterday, you'd run
     getRecycleSummaryByCampaign(parseTrans(), 1, "campaign 1")
@@ -106,7 +110,6 @@ recycleNumber_l: list of recycle numbers needed to count. Will
     automatically convert int to a single-item list. Leave empty for all #
 campaignName: check logParseTrans() or CRM for campaignName. Leave
     empty for all campaigns
-
 outputs [recycle success, recycle total]
 """
 def getRecycleSummaryByCampaign(trans, recycleNumber_l=range(15),
@@ -118,24 +121,24 @@ def getRecycleSummaryByCampaign(trans, recycleNumber_l=range(15),
 
     for entry in trans:
         if entry["recycleNumber"] in recycleNumber_l and \
-            (entry["campaignName"] == campaignName or campaignName == ""):
+            (entry["campaignName"] == campaignName or campaignName == "") \
+            and entry["txnType"] == "SALE":
             total += 1
             if entry["responseType"] == "SUCCESS":
                 success += 1
     return [success, total]
 
 """
-getSalesAmtByCampaign(trans, campaignName="")
-
+UNDER CONSTRUCTION
+getSalesAmtByCampaign(trans[, campaignName=""])
 trans: list of trans needed to count out of. For example: if you want check
     the 1st rebill for "campaign 1" for yesterday, you'd run
     rebillSummaryByCampaign(parseTrans(), "campaign 1", 2)
 campaignName: check logParseTrans() or CRM for campaignName. Leave
     empty for all campaigns
-
 outputs a float number that represents the sales amount
 """
-def getSalesAmtByCampaign(trans, campaignName=""):
+def getSalesAmtByCampaign(trans, campaignName=""): #TODO DOESN'T MATCH CRM
     sales = 0
     for entry in trans:
         if entry["billingCycleNumber"] == 1 and entry["txnType"] == "SALE" \
@@ -146,14 +149,12 @@ def getSalesAmtByCampaign(trans, campaignName=""):
 
 """
 UNDER CONSTRUCTION
-getRefundsAmtByCampaign(trans, campaignName="")
-
+getRefundsAmtByCampaign(trans[, campaignName=""])
 trans: list of trans needed to count out of. For example: if you want check
     the 1st rebill for "campaign 1" for yesterday, you'd run
     rebillSummaryByCampaign(parseTrans(), "campaign 1", 2)
 campaignName: check logParseTrans() or CRM for campaignName. Leave
     empty for all campaigns
-
 outputs a float number that represents the refund amount
 """
 def getRefundsAmtByCampaign(trans, campaignName=""): #TODO DOESN'T MATCH CRM
